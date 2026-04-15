@@ -1,0 +1,44 @@
+{
+  "name": "thespawn",
+  "version": "0.1.0",
+  "description": "Find the best-of-best ERC-8004 agents. 176K → ~173 S/A/B tier. CLI + skill + MCP server for AI coding agents.",
+  "type": "module",
+  "bin": {
+    "thespawn": "./dist/thespawn.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "build": "mkdir -p dist && bun build ./src/index.ts --outfile dist/thespawn.js --target bun --minify",
+    "build:binary": "bun build ./src/index.ts --compile --outfile dist/thespawn",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "erc-8004",
+    "agents",
+    "thespawn",
+    "ai-agents",
+    "claude-code",
+    "mcp",
+    "x402"
+  ],
+  "author": "Roman Krutovoy <krutovoyroman@gmail.com>",
+  "license": "MIT",
+  "homepage": "https://thespawn.io",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SwiftAdviser/thespawn-cli.git"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "dependencies": {
+    "incur": "^0.3.25"
+  },
+  "engines": {
+    "bun": ">=1.1.0"
+  }
+}
