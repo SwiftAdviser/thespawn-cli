@@ -1,20 +1,29 @@
 {
   "name": "thespawn",
   "version": "0.1.0",
-  "description": "Find the best-of-best ERC-8004 agents. 176K → ~173 S/A/B tier. CLI + skill + MCP server for AI coding agents.",
+  "description": "Find the best-of-best ERC-8004 agents. 176K → ~173 S/A/B tier. CLI + Claude Code skill + MCP server.",
   "type": "module",
   "bin": {
-    "thespawn": "./dist/thespawn.js"
+    "thespawn": "dist/index.js"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js"
+    }
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "start": "bun run src/index.ts",
-    "build": "mkdir -p dist && bun build ./src/index.ts --outfile dist/thespawn.js --target bun --minify",
-    "build:binary": "bun build ./src/index.ts --compile --outfile dist/thespawn",
-    "typecheck": "tsc --noEmit"
+    "build": "tsup src/index.ts --format esm --target node18 --clean --no-splitting",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "bun run build"
   },
   "keywords": [
     "erc-8004",
@@ -33,7 +42,9 @@
     "url": "git+https://github.com/SwiftAdviser/thespawn-cli.git"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "tsup": "^8.5.1",
+    "typescript": "^6.0.2"
   },
   "dependencies": {
     "incur": "^0.3.25"

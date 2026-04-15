@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 import { Cli, z } from 'incur'
 
 const API_BASE = process.env.THESPAWN_API ?? 'https://thespawn.io'
