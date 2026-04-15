@@ -12,17 +12,24 @@ const CHAINS: Record<string, number> = {
 const chainIdToSlug = Object.fromEntries(Object.entries(CHAINS).map(([s, id]) => [id, s]))
 
 type Agent = {
-  id: number
   agent_id: number
   chain_id: number
+  chain_slug: string
   name: string | null
   description: string | null
   image_url: string | null
   quality_score: number | null
   quality_tier: string | null
-  total_score: number | null
   is_verified: boolean
   agent_platform?: string | null
+  url: string
+}
+
+type SearchResponse = {
+  query: string
+  filter: { chain: string | null; tier: string[]; limit: number }
+  total_returned: number
+  agents: Agent[]
 }
 
 type BreakdownRow = { label: string; max: number; earned: number; tip: string | null }
@@ -104,30 +111,16 @@ async function apiPost<T>(path: string, body: unknown): Promise<T> {
 }
 
 function formatAgent(a: Agent) {
-  const slug = chainIdToSlug[a.chain_id] ?? `chain-${a.chain_id}`
-  const score = a.quality_score ?? a.total_score
   return {
     name: a.name ?? `agent #${a.agent_id}`,
     tier: a.quality_tier ?? '-',
-    score: score !== null ? Math.round(score as number) : null,
-    chain: slug,
+    score: a.quality_score !== null ? Math.round(a.quality_score) : null,
+    chain: a.chain_slug,
     id: a.agent_id,
     verified: a.is_verified,
     description: a.description?.slice(0, 120) ?? null,
-    url: `${API_BASE}/agents/${slug}/${a.agent_id}`,
+    url: a.url,
   }
-}
-
-function passesFilters(a: Agent, chain?: string, tiers?: string[]) {
-  if (chain) {
-    const wantChain = CHAINS[chain.toLowerCase()]
-    if (!wantChain || a.chain_id !== wantChain) return false
-  }
-  if (tiers && tiers.length > 0) {
-    const tier = (a.quality_tier ?? '').toUpperCase()
-    if (!tiers.includes(tier)) return false
-  }
-  return true
 }
 
 const DEFAULT_TIERS = ['S', 'A', 'B']
@@ -158,19 +151,25 @@ Cli.create('thespawn', {
       const tiers = (c.options.tier ?? DEFAULT_TIERS.join(','))
         .split(',').map((t) => t.trim().toUpperCase()).filter(Boolean)
 
-      const raw = await apiGet<Agent[]>(`/api/agents/search?q=${encodeURIComponent(q)}`)
-      const filtered = raw.filter((a) => passesFilters(a, c.options.chain, tiers))
-      const picked = filtered.slice(0, c.options.limit).map(formatAgent)
+      const params = new URLSearchParams({
+        q,
+        tier: tiers.join(','),
+        limit: String(c.options.limit),
+      })
+      if (c.options.chain) params.set('chain', c.options.chain)
+
+      const data = await apiGet<SearchResponse>(`/api/v1/search?${params.toString()}`)
+      const picked = data.agents.map(formatAgent)
 
       return c.ok(
         {
           query: q,
           filter: {
-            chain: c.options.chain ?? 'any',
-            tier: tiers.join(','),
+            chain: data.filter.chain ?? 'any',
+            tier: data.filter.tier.join(','),
+            limit: data.filter.limit,
           },
-          total_returned: picked.length,
-          total_before_filter: raw.length,
+          total_returned: data.total_returned,
           agents: picked,
         },
         {
