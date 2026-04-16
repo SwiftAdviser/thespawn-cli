@@ -181,7 +181,9 @@ function writeJsonMcp(configPath: string, serverName: string, mcpUrl: string, dr
 
     const servers = (config.mcpServers ?? {}) as Record<string, unknown>
     const existed = serverName in servers
-    servers[serverName] = { url: mcpUrl }
+    const entry: Record<string, string> = { url: mcpUrl }
+    if (configPath.includes('.claude')) entry.type = 'http'
+    servers[serverName] = entry
     config.mcpServers = servers
 
     if (dryRun) {
@@ -212,7 +214,7 @@ function writeTomlMcp(configPath: string, serverName: string, mcpUrl: string, dr
       `\\[mcp_servers\\.${serverName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\][^\\[]*`,
       's',
     )
-    const newSection = `${sectionHeader}\nurl = "${mcpUrl}"\n`
+    const newSection = `${sectionHeader}\ntype = "http"\nurl = "${mcpUrl}"\n`
     const existed = sectionRe.test(content)
 
     if (existed) {
