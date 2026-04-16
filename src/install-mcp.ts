@@ -63,19 +63,19 @@ function parseInput(input: string): { chain: string; agentId: number } {
   }
 
   if (/^\d+$/.test(input)) {
-    throw new Error(`Specify chain: base/${input}, arbitrum/${input}, etc.`)
+    throw new Error(`Specify chain: base:${input}, arbitrum:${input}, etc.`)
   }
 
-  const parts = input.split('/')
+  const parts = input.split(/[:/]/)
   if (parts.length === 2) {
     const [chain, idStr] = parts
     const id = Number(idStr)
-    if (!chain || Number.isNaN(id)) throw new Error(`Invalid format. Use: base/29382`)
+    if (!chain || Number.isNaN(id)) throw new Error(`Invalid format. Use: base:29382 or base/29382`)
     if (!(chain in CHAINS)) throw new Error(`Unknown chain "${chain}". Valid: ${Object.keys(CHAINS).join(', ')}`)
     return { chain, agentId: id }
   }
 
-  throw new Error(`Invalid input. Use: base/29382 or https://thespawn.io/agents/base/29382`)
+  throw new Error(`Invalid input. Use: base:29382, base/29382, or https://thespawn.io/agents/base/29382`)
 }
 
 // ---------------------------------------------------------------------------
