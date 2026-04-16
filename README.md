@@ -1,107 +1,86 @@
-# thespawn
+# spawnr
 
-Find the best-of-best ERC-8004 agents. 176K registered → filtered to ~173 S/A/B tier that pass metadata + liveness + tool-call probe hard gates.
-
-One CLI. Auto-installs as a Claude Code skill or MCP server. Built on [`incur`](https://github.com/wevm/incur), so the same binary works as skill, MCP, or HTTP Fetch handler.
+Agent search for AI coding tools. 176K onchain agents, filtered to the ~170 that actually work.
 
 ## Install
 
 ```bash
-bun install -g thespawn
-# or: npm install -g thespawn
+npx spawnr search instagram
 ```
 
-### Use as a Claude Code skill
+Or install globally:
 
 ```bash
-thespawn skills add
+npm i -g spawnr
 ```
 
-Writes `~/.claude/skills/thespawn/SKILL.md` auto-generated from the CLI. No copy-paste, no frontmatter to maintain by hand.
-
-### Use as an MCP server
+## Quick start
 
 ```bash
-thespawn mcp add
+# Find agents by keyword (default: only S/A/B quality tier)
+spawnr search "price oracle" --chain base
+
+# Full agent card
+spawnr show base/29382
+
+# Quality audit with fix-list (run this on YOUR service before minting)
+spawnr check https://your-api.com
+
+# Install an agent's MCP server into Claude Code / Cursor / Windsurf
+spawnr install-mcp base/29382
 ```
 
-Registers the CLI as an MCP stdio server in your agent config. Works with Claude Code, Cursor, Codex, Cline, and any MCP-compatible client.
+## Agent discovery for your coding agent
+
+```bash
+# Auto-install as Claude Code skill
+spawnr skills add
+
+# Or register as MCP server
+spawnr mcp add
+```
+
+After either command, your agent can call `spawnr search` and `spawnr install-mcp` without you typing anything.
 
 ## Commands
 
-### `thespawn search <query>`
+| Command | What it does |
+|---------|-------------|
+| `spawnr search <query>` | Keyword search across 176K agents. Default tier `S,A,B` (top 0.1%). Flags: `--chain`, `--tier`, `--limit` |
+| `spawnr show <input>` | Full card by chain/id, URL, or website host |
+| `spawnr check <input>` | Quality audit: metadata/liveness/community breakdown + severity-tagged fixes |
+| `spawnr install-mcp <chain/id>` | Write MCP server config for Claude Code, Cursor, Windsurf, Codex |
 
-Keyword search across 176K agents. Default filter: tiers `S,A,B` (top 0.1%).
+Accepts: `base/29382`, `https://thespawn.io/agents/base/29382`, `https://socialintel.dev`.
 
-```bash
-thespawn search defi --limit 5
-thespawn search "price oracle" --chain base
-thespawn search swap --tier S,A --format json
-```
+## Output formats
 
-Flags:
-- `--chain <slug>`: filter by chain (`base`, `arbitrum`, `bsc`, `polygon`, `ethereum`, `optimism`, `celo`, `avalanche`, `gnosis`, `linea`, `scroll`, `solana`, `tempo`, `arc`)
-- `--tier <csv>`: quality tiers to keep. Default `S,A,B`. Use `S,A,B,C` to include average agents.
-- `--limit <n>`: 1-50, default 10.
-
-### `thespawn show <input>`
-
-Full agent card by chain/id, thespawn.io URL, 8004scan URL, or website host. Triggers JIT metadata resolve if the agent exists on-chain but is not yet indexed.
+Default output is [TOON](https://github.com/toon-format/toon) (3x fewer tokens than JSON). Switch with:
 
 ```bash
-thespawn show base/29382
-thespawn show https://thespawn.io/agents/base/29382
-thespawn show https://socialintel.dev
+spawnr search defi --json            # JSON
+spawnr search defi --format yaml     # YAML
+spawnr search defi --format md       # Markdown
+spawnr show base/29382 --format json # any command
 ```
 
-If a host matches multiple registered agents, returns a `status: disambiguation_needed` response with a candidate list.
+## What "best-of-best" means
 
-### `thespawn check <input>`
+The ERC-8004 registry has 176K agents across 25 chains. 155K are dead. 9K are mediocre. `spawnr` returns only agents that pass three hard gates:
 
-Quality audit with a structured fix-list: metadata / liveness / community breakdown plus `critical`, `warning`, and `info` severity items tied to the scoring rubric at [thespawn.io/manifesto](https://thespawn.io/manifesto).
+1. **Metadata.** Name, description, image, 4+ services declared.
+2. **Liveness.** At least one endpoint answers within 500ms.
+3. **Tool-call probe.** At least one protocol (MCP / A2A / x402 / OpenAPI) actually works.
 
-```bash
-thespawn check base/1549
-thespawn check https://your-service.com
-```
+170 agents pass all three. Ranked by `quality_score`.
 
-Founders run this on their own service before minting an ERC-8004 agent to know exactly what will be deducted from their quality score.
+## Community
 
-## Global options (built into incur)
-
-- `--format toon|json|yaml|md|jsonl` — output format. Default is TOON (3x fewer tokens than JSON for agent consumption).
-- `--json` — shortcut for `--format json`.
-- `--llms` — print LLM-readable command manifest. Agents use this to discover what the CLI can do.
-- `--schema` — print JSON schema of the current command.
-- `--help` — show help for a command.
-- `--version` — show CLI version.
-
-## Configuration
-
-```bash
-export THESPAWN_API=https://thespawn.io  # default; override to point at staging
-```
-
-No API key required for search / show / check on the public API. Rate-limited by IP.
-
-## Positioning
-
-The ERC-8004 registry has 176K agents across 25 chains. ~99% are either dead, spam, or have no working endpoints. Existing directories list them all without quality signal, so picking a useful agent means trawling a caravan of garbage.
-
-`thespawn` filters down to the ~173 agents that pass three hard gates on mainnet:
-
-1. **Metadata gate:** name, description, image, 4+ services declared.
-2. **Liveness gate:** at least one service endpoint answers within 500ms.
-3. **Tool-call probe:** at least one declared protocol (MCP `tools/list`, A2A `agent-card.json`, x402 `accepts[]`, or OpenAPI spec) actually works.
-
-When a developer asks "find me a DeFi price oracle," `thespawn search` returns agents that passed all three gates in rank order by `quality_score`, not agents that merely have those words in their name.
-
-## Related
-
-- [thespawn.io](https://thespawn.io) — the web directory + quality rubric.
-- [`public/SKILL.md`](https://thespawn.io/SKILL.md) on thespawn.io — canonical guide for registering your own agent on-chain.
-- [ERC-8004 spec](https://eips.ethereum.org/EIPS/eip-8004).
-- [`incur`](https://github.com/wevm/incur) — the CLI framework that gives us skill / MCP / TOON output for free.
+- [thespawn.io](https://thespawn.io) -- web directory + quality rubric
+- [thespawn.io/manifesto](https://thespawn.io/manifesto) -- scoring philosophy
+- [thespawn.io/SKILL.md](https://thespawn.io/SKILL.md) -- register your own agent on-chain
+- [ERC-8004 spec](https://eips.ethereum.org/EIPS/eip-8004)
+- [Telegram](https://t.me/mandate_md)
 
 ## License
 

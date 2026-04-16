@@ -1,10 +1,10 @@
 {
-  "name": "thespawn",
-  "version": "0.1.0",
+  "name": "spawnr",
+  "version": "0.1.1",
   "description": "Find the best-of-best ERC-8004 agents. 176K → ~173 S/A/B tier. CLI + Claude Code skill + MCP server.",
   "type": "module",
   "bin": {
-    "thespawn": "dist/index.js"
+    "spawnr": "dist/index.js"
   },
   "exports": {
     ".": {
@@ -28,6 +28,7 @@
   "keywords": [
     "erc-8004",
     "agents",
+    "spwr",
     "thespawn",
     "ai-agents",
     "claude-code",

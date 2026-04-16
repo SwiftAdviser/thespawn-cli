@@ -1,135 +1,20 @@
 #!/usr/bin/env node
 import { Cli, z } from 'incur'
-
-const API_BASE = process.env.THESPAWN_API ?? 'https://thespawn.io'
-
-const CHAINS: Record<string, number> = {
-  ethereum: 1, base: 8453, bsc: 56, polygon: 137, arbitrum: 42161,
-  optimism: 10, celo: 42220, avalanche: 43114, gnosis: 100, linea: 59144,
-  scroll: 534352, solana: 101, tempo: 4217, arc: 5042002,
-}
-
-const chainIdToSlug = Object.fromEntries(Object.entries(CHAINS).map(([s, id]) => [id, s]))
-
-type Agent = {
-  agent_id: number
-  chain_id: number
-  chain_slug: string
-  name: string | null
-  description: string | null
-  image_url: string | null
-  quality_score: number | null
-  quality_tier: string | null
-  is_verified: boolean
-  agent_platform?: string | null
-  url: string
-}
-
-type SearchResponse = {
-  query: string
-  filter: { chain: string | null; tier: string[]; limit: number }
-  total_returned: number
-  agents: Agent[]
-}
-
-type BreakdownRow = { label: string; max: number; earned: number; tip: string | null }
-
-type Recommendation = { severity: 'critical' | 'warning' | 'info'; message: string }
-
-type CheckResponseSingle = {
-  agent: {
-    id: number
-    agent_id: number
-    chain_id: number
-    chain_slug?: string | null
-    name: string | null
-    description: string | null
-    image_url: string | null
-  }
-  scores: {
-    quality_score: number
-    quality_tier: string
-    metadata_score: number
-    liveness_score: number
-    community_score: number
-    metadata_breakdown?: BreakdownRow[]
-    liveness_breakdown?: BreakdownRow[]
-    community_breakdown?: BreakdownRow[]
-  }
-  liveness_checks?: unknown[]
-  recommendations?: Recommendation[]
-}
-
-type CheckResponseHost = {
-  host: string | null
-  candidates: Array<{
-    id: number
-    agent_id: number
-    chain_id: number
-    chain_slug?: string | null
-    name: string | null
-    description: string | null
-    image_url: string | null
-    quality_score: number | null
-    quality_tier: string | null
-  }>
-}
-
-type CheckResponse = CheckResponseSingle | CheckResponseHost
-
-function isSingle(r: CheckResponse): r is CheckResponseSingle {
-  return 'agent' in r && r.agent !== null && r.agent !== undefined
-}
-
-async function apiGet<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: { 'Accept': 'application/json', 'User-Agent': 'thespawn-cli' },
-  })
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}: GET ${path}`)
-  return res.json() as Promise<T>
-}
-
-async function apiPost<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    method: 'POST',
-    headers: {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-      'User-Agent': 'thespawn-cli',
-    },
-    body: JSON.stringify(body),
-  })
-  if (!res.ok) {
-    let msg = `${res.status} ${res.statusText}`
-    try {
-      const err = await res.json() as { error?: string; message?: string }
-      if (err?.error || err?.message) msg += `: ${err.error ?? err.message}`
-    } catch {}
-    throw new Error(`${msg} (POST ${path})`)
-  }
-  return res.json() as Promise<T>
-}
-
-function formatAgent(a: Agent) {
-  return {
-    name: a.name ?? `agent #${a.agent_id}`,
-    tier: a.quality_tier ?? '-',
-    score: a.quality_score !== null ? Math.round(a.quality_score) : null,
-    chain: a.chain_slug,
-    id: a.agent_id,
-    verified: a.is_verified,
-    description: a.description?.slice(0, 120) ?? null,
-    url: a.url,
-  }
-}
+import {
+  API_BASE, chainIdToSlug,
+  apiGet, apiPost, formatAgent,
+  isSingle,
+  type SearchResponse, type CheckResponse,
+} from './shared'
+import { installMcpCommand } from './install-mcp'
 
 const DEFAULT_TIERS = ['S', 'A', 'B']
 
-Cli.create('thespawn', {
+Cli.create('spawnr', {
   description:
     'Find the best-of-best ERC-8004 agents across 25 chains. ' +
     '176K total agents → filtered to ~173 S/A/B tier verified-working via hard gates.',
-  version: '0.1.0',
+  version: '0.1.1',
 })
   .command('search', {
     description:
@@ -161,6 +46,17 @@ Cli.create('thespawn', {
       const data = await apiGet<SearchResponse>(`/api/v1/search?${params.toString()}`)
       const picked = data.agents.map(formatAgent)
 
+      const top = picked[0]
+      const ctas = top
+        ? [
+            { command: `install-mcp ${top.chain}/${top.id}`, description: `Install MCP for ${top.name}` },
+            ...picked.slice(0, 2).map((a) => ({
+              command: `show ${a.chain}/${a.id}`,
+              description: `Full card for ${a.name}`,
+            })),
+          ]
+        : []
+
       return c.ok(
         {
           query: q,
@@ -172,14 +68,7 @@ Cli.create('thespawn', {
           total_returned: data.total_returned,
           agents: picked,
         },
-        {
-          cta: {
-            commands: picked.slice(0, 2).map((a) => ({
-              command: `show ${a.chain}/${a.id}`,
-              description: `Full card for ${a.name}`,
-            })),
-          },
-        },
+        { cta: { commands: ctas } },
       )
     },
   })
@@ -236,6 +125,10 @@ Cli.create('thespawn', {
       }, {
         cta: {
           commands: [
+            {
+              command: `install-mcp ${slug}/${data.agent.agent_id}`,
+              description: 'Install MCP server',
+            },
             {
               command: `check ${slug}/${data.agent.agent_id}`,
               description: 'Audit with fix-list',
@@ -314,4 +207,5 @@ Cli.create('thespawn', {
       })
     },
   })
+  .command('install-mcp', installMcpCommand)
   .serve()
