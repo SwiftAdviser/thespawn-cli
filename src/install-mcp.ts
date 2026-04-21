@@ -2,7 +2,11 @@ import { z } from 'incur'
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, dirname } from 'node:path'
-import { API_BASE, CHAINS, apiGet } from './shared'
+import { API_BASE, CHAINS, apiGet, PaymentRequiredError } from './shared'
+import {
+  readAuth, writeAuth, claimPairToken, fetchBalance, shortenAddress, describePaymentError,
+  type AuthSession,
+} from './auth'
 
 // ---------------------------------------------------------------------------
 // Banner
@@ -156,8 +160,8 @@ function deriveServerName(agent: AgentDetail, override?: string): string {
     : null
 
   return base
-    ? `thespawn-${base}`
-    : `thespawn-${agent.chain_slug ?? 'agent'}-${agent.agent_id}`
+    ? `spwnr-${base}`
+    : `spwnr-${agent.chain_slug ?? 'agent'}-${agent.agent_id}`
 }
 
 // ---------------------------------------------------------------------------
@@ -257,13 +261,43 @@ export const installMcpCommand = {
     'dry-run': z.boolean().optional().default(false).describe(
       'Preview changes without writing files',
     ),
+    claim: z.string().optional().describe(
+      'One-time pairing token to link this install to your thespawn.io account',
+    ),
   }),
   async run(c: any) {
     console.log(BANNER)
 
     const { chain, agentId } = parseInput(c.args.input)
 
-    const agent = await apiGet<AgentDetail>(`/api/v1/agents/${chain}/${agentId}`)
+    // Resolve auth first so 402 errors can reference the user's wallet.
+    let session: AuthSession | null = null
+    let claimJustLinked = false
+    const claimToken = c.options.claim as string | undefined
+    if (claimToken) {
+      const claimed = await claimPairToken(claimToken)
+      if (claimed) {
+        session = {
+          session_token: claimed.session_token,
+          user_email: claimed.user_email,
+          wallet_address: claimed.wallet_address,
+          linked_at: new Date().toISOString(),
+        }
+        writeAuth(session)
+        claimJustLinked = true
+      }
+    }
+    if (!session) session = readAuth()
+
+    let agent: AgentDetail
+    try {
+      agent = await apiGet<AgentDetail>(`/api/v1/agents/${chain}/${agentId}`)
+    } catch (err) {
+      if (err instanceof PaymentRequiredError) {
+        return c.ok(await describePaymentError(err, session))
+      }
+      throw err
+    }
     const mcpUrl = extractMcpEndpoint(agent)
     const agentName = agent.name ?? `agent #${agent.agent_id}`
     const agentUrl = agent.url ?? `${API_BASE}/agents/${chain}/${agentId}`
@@ -300,11 +334,30 @@ export const installMcpCommand = {
       installed.push(result)
     }
 
+    // Fetch wallet balance on the agent's chain (non-blocking, 2s timeout)
+    let wallet: { address: string; address_full: string; balance: string; symbol: string; chain: string; fund_url?: string } | undefined
+    if (session?.wallet_address) {
+      const chainId = CHAINS[chain]
+      const bal = chainId ? await fetchBalance(chainId, session.wallet_address) : null
+      wallet = {
+        address: shortenAddress(session.wallet_address),
+        address_full: session.wallet_address,
+        balance: bal?.balance ?? '—',
+        symbol: bal?.symbol ?? 'USDC',
+        chain,
+      }
+      if (bal && (bal.balance === '0.00' || bal.balance === '—')) {
+        wallet.fund_url = `${API_BASE}/wallet`
+      }
+    }
+
     return c.ok({
       agent: { name: agentName, chain, id: agentId, tier: agent.quality_tier, score: agent.quality_score !== null ? Math.round(agent.quality_score) : null, mcp_endpoint: mcpUrl },
       server_name: serverName,
       installed,
       skipped,
+      linked: session ? { email: session.user_email, just_linked: claimJustLinked } : undefined,
+      wallet,
       url: agentUrl,
       hint: installed.some((r) => r.status === 'added' || r.status === 'updated')
         ? 'Restart your editor to connect.'
@@ -312,6 +365,7 @@ export const installMcpCommand = {
     }, {
       cta: {
         commands: [
+          ...(session ? [] : [{ command: 'login <token>', description: 'Link this install to your account' }]),
           { command: `show ${chain}/${agentId}`, description: 'Full agent card' },
         ],
       },

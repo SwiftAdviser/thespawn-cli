@@ -73,10 +73,55 @@ export function isSingle(r: CheckResponse): r is CheckResponseSingle {
   return 'agent' in r && r.agent !== null && r.agent !== undefined
 }
 
+export type PaymentRequirement = {
+  network: string
+  amount: string      // human-readable, e.g. "1.00"
+  symbol: string      // e.g. "USDC"
+  decimals: number
+  asset: string       // token contract or "native"
+  payTo: string
+  raw_amount: string  // base units as returned
+  description?: string
+}
+
+export class PaymentRequiredError extends Error {
+  constructor(public readonly requirement: PaymentRequirement, public readonly path: string) {
+    super(`Payment required: ${requirement.amount} ${requirement.symbol} on ${requirement.network}`)
+    this.name = 'PaymentRequiredError'
+  }
+}
+
+function parseX402(body: any, path: string): PaymentRequiredError | null {
+  const accepts = body?.accepts
+  if (!Array.isArray(accepts) || accepts.length === 0) return null
+  const a = accepts[0] as Record<string, any>
+  const decimals = Number(a?.extra?.decimals ?? 6)
+  const symbol = String(a?.extra?.name ?? a?.extra?.symbol ?? 'USDC')
+  const raw = String(a?.maxAmountRequired ?? '0')
+  const amountNum = Number(raw) / Math.pow(10, decimals)
+  const amount = amountNum < 0.01 && amountNum > 0 ? '<0.01' : amountNum.toFixed(2)
+  return new PaymentRequiredError({
+    network: String(a?.network ?? 'unknown'),
+    amount,
+    symbol,
+    decimals,
+    asset: String(a?.asset ?? 'native'),
+    payTo: String(a?.payTo ?? ''),
+    raw_amount: raw,
+    description: a?.description ? String(a.description) : undefined,
+  }, path)
+}
+
 export async function apiGet<T>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     headers: { 'Accept': 'application/json', 'User-Agent': 'thespawn-cli' },
   })
+  if (res.status === 402) {
+    let body: any = null
+    try { body = await res.json() } catch {}
+    const err = parseX402(body, path)
+    if (err) throw err
+  }
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}: GET ${path}`)
   return res.json() as Promise<T>
 }
@@ -91,6 +136,12 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
     },
     body: JSON.stringify(body),
   })
+  if (res.status === 402) {
+    let parsed: any = null
+    try { parsed = await res.json() } catch {}
+    const err = parseX402(parsed, path)
+    if (err) throw err
+  }
   if (!res.ok) {
     let msg = `${res.status} ${res.statusText}`
     try {

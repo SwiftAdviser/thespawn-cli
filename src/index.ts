@@ -1,12 +1,27 @@
 #!/usr/bin/env node
 import { Cli, z } from 'incur'
 import {
-  API_BASE, chainIdToSlug,
+  API_BASE, CHAINS, chainIdToSlug,
   apiGet, apiPost, formatAgent,
-  isSingle,
+  isSingle, PaymentRequiredError,
   type SearchResponse, type CheckResponse,
 } from './shared'
 import { installMcpCommand } from './install-mcp'
+import {
+  readAuth, writeAuth, deleteAuth, claimPairToken, fetchBalance,
+  shortenAddress, describePaymentError, AUTH_PATH,
+} from './auth'
+
+async function run402Safe<T>(fn: () => Promise<T>, c: any) {
+  try {
+    return await fn()
+  } catch (err) {
+    if (err instanceof PaymentRequiredError) {
+      return c.ok(await describePaymentError(err, readAuth()))
+    }
+    throw err
+  }
+}
 
 const DEFAULT_TIERS = ['S', 'A', 'B']
 
@@ -14,7 +29,7 @@ Cli.create('spawnr', {
   description:
     'Find the best-of-best ERC-8004 agents across 25 chains. ' +
     '176K total agents → filtered to ~173 S/A/B tier verified-working via hard gates.',
-  version: '0.1.1',
+  version: '0.2.0',
 })
   .command('search', {
     description:
@@ -32,6 +47,7 @@ Cli.create('spawnr', {
       limit: z.coerce.number().int().min(1).max(50).default(10).describe('Max results 1-50'),
     }),
     async run(c) {
+      return run402Safe(async () => {
       const q = c.args.query
       const tiers = (c.options.tier ?? DEFAULT_TIERS.join(','))
         .split(',').map((t) => t.trim().toUpperCase()).filter(Boolean)
@@ -70,6 +86,7 @@ Cli.create('spawnr', {
         },
         { cta: { commands: ctas } },
       )
+      }, c)
     },
   })
   .command('show', {
@@ -81,6 +98,7 @@ Cli.create('spawnr', {
       ),
     }),
     async run(c) {
+      return run402Safe(async () => {
       const data = await apiPost<CheckResponse>('/api/quality-check', {
         input: c.args.input,
       })
@@ -136,6 +154,7 @@ Cli.create('spawnr', {
           ],
         },
       })
+      }, c)
     },
   })
   .command('check', {
@@ -148,6 +167,7 @@ Cli.create('spawnr', {
       ),
     }),
     async run(c) {
+      return run402Safe(async () => {
       const data = await apiPost<CheckResponse>('/api/quality-check', {
         input: c.args.input,
       })
@@ -205,7 +225,93 @@ Cli.create('spawnr', {
         fixes: all.length ? all : [{ severity: 'info' as const, fix: 'No major issues. Agent is in good shape.' }],
         url: `${API_BASE}/agents/${slug}/${data.agent.agent_id}`,
       })
+      }, c)
     },
   })
   .command('install-mcp', installMcpCommand)
+  .command('whoami', {
+    description: 'Show the account and wallet linked to this machine.',
+    args: z.object({}),
+    options: z.object({
+      chain: z.string().optional().describe('Check balance on a specific chain (default: base)'),
+    }),
+    async run(c) {
+      const session = readAuth()
+      if (!session) {
+        return c.ok({
+          linked: false,
+          message: 'Not linked. Run `spawnr login <token>` or copy an install command while logged in at thespawn.io.',
+          auth_path: AUTH_PATH.replace(process.env.HOME ?? '~', '~'),
+        })
+      }
+
+      const chain = c.options.chain ?? 'base'
+      const chainId = CHAINS[chain]
+      const bal = chainId ? await fetchBalance(chainId, session.wallet_address) : null
+
+      return c.ok({
+        linked: true,
+        email: session.user_email,
+        wallet: {
+          address: shortenAddress(session.wallet_address),
+          address_full: session.wallet_address,
+          chain,
+          balance: bal?.balance ?? '—',
+          symbol: bal?.symbol ?? 'USDC',
+        },
+        linked_at: session.linked_at,
+      })
+    },
+  })
+  .command('login', {
+    description:
+      'Link this machine to your thespawn.io account using a claim token. ' +
+      'Get a token by copying any install command while logged in at thespawn.io.',
+    args: z.object({
+      token: z.string().min(3).describe('Claim token (starts with "c_")'),
+    }),
+    async run(c) {
+      const claimed = await claimPairToken(c.args.token)
+      if (!claimed) {
+        return c.ok({
+          ok: false,
+          error: 'token_expired_or_invalid',
+          message: 'Token is expired, already used, or invalid. Tokens last 24 hours and work once.',
+        })
+      }
+      const session = {
+        session_token: claimed.session_token,
+        user_email: claimed.user_email,
+        wallet_address: claimed.wallet_address,
+        linked_at: new Date().toISOString(),
+      }
+      writeAuth(session)
+      return c.ok({
+        ok: true,
+        email: session.user_email,
+        wallet: {
+          address: shortenAddress(session.wallet_address),
+          address_full: session.wallet_address,
+        },
+      }, {
+        cta: {
+          commands: [
+            { command: 'whoami', description: 'Show linked account + balance' },
+          ],
+        },
+      })
+    },
+  })
+  .command('logout', {
+    description: 'Unlink this machine from your account (deletes local session file).',
+    args: z.object({}),
+    async run(c) {
+      const existed = deleteAuth()
+      return c.ok({
+        ok: true,
+        cleared: existed,
+        message: existed ? 'Session removed.' : 'No session on this machine.',
+      })
+    },
+  })
   .serve()
