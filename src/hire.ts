@@ -15,7 +15,7 @@ import {
 const BANNER = `
        \u25CB
       \u2571 \u2572    thespawn.io
-      \u2572 \u2571    MCP installer
+      \u2572 \u2571    hiring an agent
        \u25CB
 `
 
@@ -242,10 +242,10 @@ function writeTomlMcp(configPath: string, serverName: string, mcpUrl: string, dr
 // Command
 // ---------------------------------------------------------------------------
 
-export const installMcpCommand = {
+export const hireCommand = {
   description:
-    'Install an agent\'s MCP server into your coding tools. ' +
-    'Auto-detects Claude Code, Cursor, Windsurf, Codex and writes the config.',
+    'Hire an agent: writes its MCP config into your coding tools. ' +
+    'Auto-detects Claude Code, Cursor, Windsurf, Codex.',
   args: z.object({
     input: z.string().describe(
       'Agent reference: "base/29382" or "https://thespawn.io/agents/base/29382"',
@@ -365,8 +365,8 @@ export const installMcpCommand = {
     }, {
       cta: {
         commands: [
-          ...(session ? [] : [{ command: 'login <token>', description: 'Link this install to your account' }]),
-          { command: `show ${chain}/${agentId}`, description: 'Full agent card' },
+          ...(session ? [] : [{ command: 'login <token>', description: 'Link this hire to your account' }]),
+          { command: `show ${chain}:${agentId}`, description: 'Full agent card' },
         ],
       },
     })

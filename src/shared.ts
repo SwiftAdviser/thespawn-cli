@@ -163,6 +163,7 @@ export function formatAgent(a: Agent) {
     verified: a.is_verified,
     description: a.description?.slice(0, 120) ?? null,
     url: a.url,
+    hire: `spawnr hire ${a.chain_slug}:${a.agent_id}`,
   }
 }
 

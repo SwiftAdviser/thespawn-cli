@@ -4,86 +4,86 @@
 
 # spawnr
 
-Agent search for AI coding tools. 176K onchain agents, filtered to the ~170 that actually work.
+**Hire verified agents into your AI workflows.**
 
-## Install
+> *Plain-English search across the agents and APIs your coding agent can actually call.*
 
-```bash
-npx spawnr search instagram
-```
+spawnr finds, ranks, and installs onchain agents that work. Search by what you want done. Get the top five, ranked by quality. One command later your coding agent has the new tool wired up. Every result passes a metadata, liveness, and tool-call gate before it appears.
 
-Or install globally:
+## Why spawnr
 
-```bash
-npm i -g spawnr
-```
+1. **Most onchain agents are dead.** spawnr returns the ones that aren't.
+2. **Plain-English search.** Type what you need. Get the top five.
+3. **One command.** spawnr wires the MCP into Claude Code, Cursor, Windsurf, Codex.
 
-## Quick start
+## Try it
 
 ```bash
-# Find agents by keyword (default: only S/A/B quality tier)
-spawnr search "price oracle" --chain base
-
-# Full agent card
-spawnr show base/29382
-
-# Quality audit with fix-list (run this on YOUR service before minting)
-spawnr check https://your-api.com
-
-# Install an agent's MCP server into Claude Code / Cursor / Windsurf
-spawnr install-mcp base/29382
+npx spawnr search "instagram influencer search"
 ```
 
-## Agent discovery for your coding agent
+You get five working agents, ranked by quality, with the hire command inline:
 
-```bash
-# Auto-install as Claude Code skill
-spawnr skills add
+1. **Social Intel API** — `base:29382` · tier B · score 74  
+   Instagram influencer discovery API for autonomous AI agents  
+   `spawnr hire base:29382`
 
-# Or register as MCP server
-spawnr mcp add
-```
+2. **Social Graph API** — `base:45293` · tier B · score 68  
+   Point your AI at a handle, hashtag, or post and pull structured social data  
+   `spawnr hire base:45293`
 
-After either command, your agent can call `spawnr search` and `spawnr install-mcp` without you typing anything.
+Your coding agent reads the result, picks one, and hires it.
+
+## What gets verified
+
+Every agent in spawnr's index passes three gates before it appears in search:
+
+| Gate | What it means |
+|------|---------------|
+| **Metadata** | Name, description, image, services declared |
+| **Liveness** | At least one endpoint answers in time |
+| **Tool-call probe** | The protocol (MCP, A2A, x402, OpenAPI) actually works |
+
+[See the full grading rubric →](https://thespawn.io/grading)
 
 ## Commands
 
 | Command | What it does |
-|---------|-------------|
-| `spawnr search <query>` | Keyword search across 176K agents. Default tier `S,A,B` (top 0.1%). Flags: `--chain`, `--tier`, `--limit` |
-| `spawnr show <input>` | Full card by chain/id, URL, or website host |
-| `spawnr check <input>` | Quality audit: metadata/liveness/community breakdown + severity-tagged fixes |
-| `spawnr install-mcp <chain/id>` | Write MCP server config for Claude Code, Cursor, Windsurf, Codex |
+|---------|---------------|
+| `spawnr search <query>` | Plain-English search. Returns the top 5. |
+| `spawnr hire <chain:id>` | Hire an agent: writes the MCP config for Claude Code, Cursor, Codex, Openclaw |
 
-Accepts: `base/29382`, `https://thespawn.io/agents/base/29382`, `https://socialintel.dev`.
+## Works with your AI tool
 
-## Output formats
+| Tool | Status |
+|------|--------|
+| **Claude Code** | Live |
+| **Cursor** | Live |
+| **Codex** | Live |
+| **Openclaw** | Live |
 
-Default output is [TOON](https://github.com/toon-format/toon) (3x fewer tokens than JSON). Switch with:
+## Wallet
+
+Some agents charge per call. Bring your own, or use the one we provide for zero-friction onboarding.
 
 ```bash
-spawnr search defi --json            # JSON
-spawnr search defi --format yaml     # YAML
-spawnr search defi --format md       # Markdown
-spawnr show base/29382 --format json # any command
+spawnr login <token>   # token from thespawn.io
+spawnr whoami          # check linked wallet + balance
+spawnr logout
 ```
 
-## What "best-of-best" means
+If you already have an agentic wallet, you're set: spawnr uses it. We provide one for smooth onboarding when you don't.
 
-The ERC-8004 registry has 176K agents across 25 chains. 155K are dead. 9K are mediocre. `spawnr` returns only agents that pass three hard gates:
+## Output
 
-1. **Metadata.** Name, description, image, 4+ services declared.
-2. **Liveness.** At least one endpoint answers within 500ms.
-3. **Tool-call probe.** At least one protocol (MCP / A2A / x402 / OpenAPI) actually works.
+Default output is [TOON](https://github.com/toon-format/toon) — 3x fewer tokens than JSON. Switch with `--json`, `--format yaml`, or `--format md` on any command.
 
-170 agents pass all three. Ranked by `quality_score`.
+## Links
 
-## Community
-
-- [thespawn.io](https://thespawn.io) -- web directory + quality rubric
-- [thespawn.io/manifesto](https://thespawn.io/manifesto) -- scoring philosophy
-- [thespawn.io/SKILL.md](https://thespawn.io/SKILL.md) -- register your own agent on-chain
-- [ERC-8004 spec](https://eips.ethereum.org/EIPS/eip-8004)
+- [thespawn.io](https://thespawn.io) — directory + quality rubric
+- [Check your agent score](https://thespawn.io/check) — audit your own service
+- [Create your own agent onchain](https://sdk.ag0.xyz/) — agent0 SDK
+- [X / Twitter](https://x.com/thespawnio)
 - [Telegram](https://t.me/mandate_md)
 
 ## License

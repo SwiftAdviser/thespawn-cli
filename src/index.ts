@@ -6,7 +6,7 @@ import {
   isSingle, PaymentRequiredError,
   type SearchResponse, type CheckResponse,
 } from './shared'
-import { installMcpCommand } from './install-mcp'
+import { hireCommand } from './hire'
 import {
   readAuth, writeAuth, deleteAuth, claimPairToken, fetchBalance,
   shortenAddress, describePaymentError, AUTH_PATH,
@@ -23,78 +23,33 @@ async function run402Safe<T>(fn: () => Promise<T>, c: any) {
   }
 }
 
-const DEFAULT_TIERS = ['S', 'A', 'B']
-
 Cli.create('spawnr', {
-  description:
-    'Find the best-of-best ERC-8004 agents across 25 chains. ' +
-    '176K total agents → filtered to ~173 S/A/B tier verified-working via hard gates.',
-  version: '0.2.0',
+  description: 'Hire verified agents into your AI workflows.',
+  version: '0.3.0',
 })
   .command('search', {
     description:
-      'Search agents by keyword. Default filter returns only S/A/B tier (top 0.1% of 176K).',
+      'Search MCP-ready agents by use case. Returns the top 5 ranked by quality.',
     args: z.object({
-      query: z.string().min(2).describe('Keyword to search for (name, description, services)'),
+      query: z.string().min(2).describe('What you want the agent to do (plain English)'),
     }),
-    options: z.object({
-      chain: z.string().optional().describe(
-        'Filter by chain slug: base, arbitrum, bsc, polygon, ethereum, ...',
-      ),
-      tier: z.string().optional().describe(
-        'Comma-separated quality tiers. Default: S,A,B (best-of-best). Use S,A,B,C to include average.',
-      ),
-      limit: z.coerce.number().int().min(1).max(50).default(10).describe('Max results 1-50'),
-    }),
+    options: z.object({}),
     async run(c) {
       return run402Safe(async () => {
-      const q = c.args.query
-      const tiers = (c.options.tier ?? DEFAULT_TIERS.join(','))
-        .split(',').map((t) => t.trim().toUpperCase()).filter(Boolean)
-
-      const params = new URLSearchParams({
-        q,
-        tier: tiers.join(','),
-        limit: String(c.options.limit),
-      })
-      if (c.options.chain) params.set('chain', c.options.chain)
-
-      const data = await apiGet<SearchResponse>(`/api/v1/search?${params.toString()}`)
-      const picked = data.agents.map(formatAgent)
-
-      const top = picked[0]
-      const ctas = top
-        ? [
-            { command: `install-mcp ${top.chain}/${top.id}`, description: `Install MCP for ${top.name}` },
-            ...picked.slice(0, 2).map((a) => ({
-              command: `show ${a.chain}/${a.id}`,
-              description: `Full card for ${a.name}`,
-            })),
-          ]
-        : []
-
-      return c.ok(
-        {
-          query: q,
-          filter: {
-            chain: data.filter.chain ?? 'any',
-            tier: data.filter.tier.join(','),
-            limit: data.filter.limit,
-          },
-          total_returned: data.total_returned,
-          agents: picked,
-        },
-        { cta: { commands: ctas } },
-      )
+        const q = c.args.query
+        const params = new URLSearchParams({ q, limit: '5' })
+        const data = await apiGet<SearchResponse>(`/api/v1/search?${params.toString()}`)
+        const agents = data.agents.map(formatAgent)
+        return c.ok({ query: q, agents })
       }, c)
     },
   })
   .command('show', {
     description:
-      'Show a full agent card by URL, chain/id, or website host. Triggers JIT resolve if not indexed yet.',
+      'Show a full agent card by chain:id, URL, or website host. Triggers JIT resolve if not indexed yet.',
     args: z.object({
       input: z.string().describe(
-        'Accepted: "base/29382", "https://thespawn.io/agents/base/29382", "https://socialintel.dev"',
+        'Accepted: "base:29382", "https://thespawn.io/agents/base/29382", "https://socialintel.dev"',
       ),
     }),
     async run(c) {
@@ -120,8 +75,8 @@ Cli.create('spawnr', {
           host: data.host,
           message:
             list.length > 0
-              ? `${list.length} agents match host "${data.host}". Pick one and re-run with "chain/id" format.`
-              : `No ERC-8004 agent found for "${c.args.input}". Either it is not registered, or use "base/29382" format.`,
+              ? `${list.length} agents match host "${data.host}". Pick one and re-run with "chain:id" format.`
+              : `No agent found for "${c.args.input}". Either it is not registered, or use "base:29382" format.`,
           candidates: list,
         })
       }
@@ -140,19 +95,7 @@ Cli.create('spawnr', {
           community: Math.round(data.scores.community_score),
         },
         url: `${API_BASE}/agents/${slug}/${data.agent.agent_id}`,
-      }, {
-        cta: {
-          commands: [
-            {
-              command: `install-mcp ${slug}/${data.agent.agent_id}`,
-              description: 'Install MCP server',
-            },
-            {
-              command: `check ${slug}/${data.agent.agent_id}`,
-              description: 'Audit with fix-list',
-            },
-          ],
-        },
+        hire: `spawnr hire ${slug}:${data.agent.agent_id}`,
       })
       }, c)
     },
@@ -163,7 +106,7 @@ Cli.create('spawnr', {
       'Pass it your own service URL before minting to know what to improve.',
     args: z.object({
       input: z.string().describe(
-        'Accepted: "base/29382", URL on thespawn.io, or a bare website host',
+        'Accepted: "base:29382", URL on thespawn.io, or a bare website host',
       ),
     }),
     async run(c) {
@@ -188,8 +131,8 @@ Cli.create('spawnr', {
           host: data.host,
           message:
             list.length > 0
-              ? `${list.length} agents match host "${data.host}". Pick one and re-run with "chain/id" format.`
-              : `No ERC-8004 agent found for "${c.args.input}". The URL is not registered, or try "base/29382" format.`,
+              ? `${list.length} agents match host "${data.host}". Pick one and re-run with "chain:id" format.`
+              : `No agent found for "${c.args.input}". The URL is not registered, or try "base:29382" format.`,
           candidates: list,
         })
       }
@@ -228,7 +171,7 @@ Cli.create('spawnr', {
       }, c)
     },
   })
-  .command('install-mcp', installMcpCommand)
+  .command('hire', hireCommand)
   .command('whoami', {
     description: 'Show the account and wallet linked to this machine.',
     args: z.object({}),

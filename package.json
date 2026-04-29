@@ -1,7 +1,7 @@
 {
   "name": "spawnr",
-  "version": "0.2.0",
-  "description": "Find the best-of-best ERC-8004 agents. 176K → ~173 S/A/B tier. CLI + Claude Code skill + MCP server.",
+  "version": "0.3.0",
+  "description": "Hire verified agents into your AI workflows. Works with Claude Code, Cursor, Codex, Openclaw.",
   "type": "module",
   "bin": {
     "spawnr": "dist/index.js"

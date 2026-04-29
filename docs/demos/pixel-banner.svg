@@ -233,9 +233,9 @@
 
   <text x="400" y="174" text-anchor="middle"
     font-family="'JetBrains Mono','Menlo','Cascadia Code','Fira Code',monospace"
-    font-size="13" fill="#E1FF7C" letter-spacing="0.3">Find, create or update reliable MCP servers for your AI agent<tspan class="cursor" fill="#E1FF7C">&#9612;</tspan></text>
+    font-size="13" fill="#E1FF7C" letter-spacing="0.3">Hire verified agents into your AI workflows<tspan class="cursor" fill="#E1FF7C">&#9612;</tspan></text>
 
   <text x="400" y="196" text-anchor="middle"
     font-family="'JetBrains Mono','Menlo','Cascadia Code','Fira Code',monospace"
-    font-size="11" fill="#3a4566" letter-spacing="2">CLAUDE CODE  ·  CURSOR  ·  WINDSURF  ·  CODEX</text>
+    font-size="11" fill="#3a4566" letter-spacing="2">CLAUDE CODE  ·  CURSOR  ·  CODEX  ·  OPENCLAW</text>
 </svg>

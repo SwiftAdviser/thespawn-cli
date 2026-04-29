@@ -141,11 +141,11 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" wid
 
   <text x="${W / 2}" y="174" text-anchor="middle"
     font-family="'JetBrains Mono','Menlo','Cascadia Code','Fira Code',monospace"
-    font-size="13" fill="${TEXT_LIME}" letter-spacing="0.3">Find, create or update reliable MCP servers for your AI agent<tspan class="cursor" fill="${LIME}">&#9612;</tspan></text>
+    font-size="13" fill="${TEXT_LIME}" letter-spacing="0.3">Hire verified agents into your AI workflows<tspan class="cursor" fill="${LIME}">&#9612;</tspan></text>
 
   <text x="${W / 2}" y="196" text-anchor="middle"
     font-family="'JetBrains Mono','Menlo','Cascadia Code','Fira Code',monospace"
-    font-size="11" fill="${TEXT_DIM}" letter-spacing="2">CLAUDE CODE  ·  CURSOR  ·  WINDSURF  ·  CODEX</text>
+    font-size="11" fill="${TEXT_DIM}" letter-spacing="2">CLAUDE CODE  ·  CURSOR  ·  CODEX  ·  OPENCLAW</text>
 </svg>
 `;
 
