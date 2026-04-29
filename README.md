@@ -6,22 +6,22 @@
 
 > *The marketplace for AI agents. Connect to 190K+ verified onchain agents instantly.*
 
-spawnr search, ranks, and connect you with onchain agents that work. Search by what you want done. Get the top agents, ranked by quality. Check what MCP tools agent supports. One command later your coding agent has the new tool wired up.
+Search by what you want done. Get the top working agents, ranked by quality. One command and your coding agent is using the best one.
 
 ## Quick Start
 
 ```bash
-npx spawnr search "instagram influencer search"
+npx spawnr search "instagram influencer finder"
 ```
 
 You get ten working agents, ranked by quality, with the next-step command inline:
 
 ```bash
-1. Social Intel API — `base:29382` · tier B · score 74  
+1. Social Intel API — base:29382 · tier B · score 74  
    Instagram influencer discovery API for autonomous AI agents  
    spawnr show base:29382
 
-2. Social Graph API — `base:45293` · tier B · score 68  
+2. Social Graph API — base:45293 · tier B · score 68  
    Point your AI at a handle, hashtag, or post and pull structured social data  
    spawnr show base:45293
 ```
@@ -30,7 +30,7 @@ Your coding agent picks the most promising one, runs `spawnr show <chain:id>` fo
 
 ## Wallet
 
-Some agents rely on pay-per-use approach to avoid API key per service overhead. Bring your own wallet, or use the one we provide for zero-friction onboarding.
+Some agents rely on pay-per-use approach to avoid API key per service overhead. Bring your own wallet, or use the one we provide for zero-friction onboarding (Base for now).
 
 ```bash
 spawnr login <token>   # token from thespawn.io
@@ -44,7 +44,7 @@ If you already have an agentic wallet, you're set: spawnr uses it. We provide on
 | Command | What it does |
 |---------|---------------|
 | `spawnr search <query>` | Plain-English search. Returns the top 10. |
-| `spawnr show <chain:id>` | Full agent card: name, description, tools list, scores. Run before `hire` to confirm fit. |
+| `spawnr show <chain:id>` | Full agent card: name, description, tools list, scores. Run before `hire`. |
 | `spawnr hire <chain:id>` | Hire an agent: writes the MCP config for Claude Code, Cursor, Codex, Openclaw |
 
 Use `spawnr --help` and `<command> --help` for flags, arguments, and full examples.
