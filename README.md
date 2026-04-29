@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/SwiftAdviser/thespawn-cli/master/docs/demos/pixel-banner.svg" alt="spawnr" width="100%" />
+</p>
+
 # spawnr
 
 Agent search for AI coding tools. 176K onchain agents, filtered to the ~170 that actually work.
