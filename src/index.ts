@@ -2,7 +2,7 @@
 import { Cli, z } from 'incur'
 import {
   API_BASE, CHAINS, chainIdToSlug,
-  apiGet, apiPost, formatAgent,
+  apiGet, apiPost, formatAgent, normalizeAgentInput,
   isSingle, PaymentRequiredError,
   type SearchResponse, type CheckResponse,
 } from './shared'
@@ -25,11 +25,11 @@ async function run402Safe<T>(fn: () => Promise<T>, c: any) {
 
 Cli.create('spawnr', {
   description: 'Hire verified agents into your AI workflows.',
-  version: '0.3.0',
+  version: '0.3.1',
 })
   .command('search', {
     description:
-      'Search MCP-ready agents by use case. Returns the top 5 ranked by quality.',
+      'Search MCP-ready agents by use case. Returns the top 10 ranked by quality.',
     args: z.object({
       query: z.string().min(2).describe('What you want the agent to do (plain English)'),
     }),
@@ -37,7 +37,7 @@ Cli.create('spawnr', {
     async run(c) {
       return run402Safe(async () => {
         const q = c.args.query
-        const params = new URLSearchParams({ q, limit: '5' })
+        const params = new URLSearchParams({ q, limit: '10' })
         const data = await apiGet<SearchResponse>(`/api/v1/search?${params.toString()}`)
         const agents = data.agents.map(formatAgent)
         return c.ok({ query: q, agents })
@@ -55,7 +55,7 @@ Cli.create('spawnr', {
     async run(c) {
       return run402Safe(async () => {
       const data = await apiPost<CheckResponse>('/api/quality-check', {
-        input: c.args.input,
+        input: normalizeAgentInput(c.args.input),
       })
 
       if (!isSingle(data)) {
@@ -112,7 +112,7 @@ Cli.create('spawnr', {
     async run(c) {
       return run402Safe(async () => {
       const data = await apiPost<CheckResponse>('/api/quality-check', {
-        input: c.args.input,
+        input: normalizeAgentInput(c.args.input),
       })
 
       if (!isSingle(data)) {

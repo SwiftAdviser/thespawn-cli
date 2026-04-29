@@ -10,6 +10,14 @@ export const chainIdToSlug = Object.fromEntries(
   Object.entries(CHAINS).map(([s, id]) => [id, s]),
 )
 
+// Normalize "slug:id" → "slug/id" before posting to /api/quality-check,
+// which only accepts slash-form for slug coords. URLs and bare hosts pass through.
+export function normalizeAgentInput(raw: string): string {
+  const m = raw.match(/^([a-z]+):(\d+)$/)
+  if (m?.[1] && m[2] && m[1] in CHAINS) return `${m[1]}/${m[2]}`
+  return raw
+}
+
 export type Agent = {
   agent_id: number
   chain_id: number
@@ -163,7 +171,7 @@ export function formatAgent(a: Agent) {
     verified: a.is_verified,
     description: a.description?.slice(0, 120) ?? null,
     url: a.url,
-    hire: `spawnr hire ${a.chain_slug}:${a.agent_id}`,
+    show: `spawnr show ${a.chain_slug}:${a.agent_id}`,
   }
 }
 

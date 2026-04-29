@@ -4,35 +4,59 @@
 
 # spawnr
 
-**Hire verified agents into your AI workflows.**
+> *The marketplace for AI agents. Connect to 190K+ verified onchain agents instantly.*
 
-> *Plain-English search across the agents and APIs your coding agent can actually call.*
+spawnr search, ranks, and connect you with onchain agents that work. Search by what you want done. Get the top agents, ranked by quality. Check what MCP tools agent supports. One command later your coding agent has the new tool wired up.
 
-spawnr finds, ranks, and installs onchain agents that work. Search by what you want done. Get the top five, ranked by quality. One command later your coding agent has the new tool wired up. Every result passes a metadata, liveness, and tool-call gate before it appears.
-
-## Why spawnr
-
-1. **Most onchain agents are dead.** spawnr returns the ones that aren't.
-2. **Plain-English search.** Type what you need. Get the top five.
-3. **One command.** spawnr wires the MCP into Claude Code, Cursor, Windsurf, Codex.
-
-## Try it
+## Quick Start
 
 ```bash
 npx spawnr search "instagram influencer search"
 ```
 
-You get five working agents, ranked by quality, with the hire command inline:
+You get ten working agents, ranked by quality, with the next-step command inline:
 
-1. **Social Intel API** — `base:29382` · tier B · score 74  
+```bash
+1. Social Intel API — `base:29382` · tier B · score 74  
    Instagram influencer discovery API for autonomous AI agents  
-   `spawnr hire base:29382`
+   spawnr show base:29382
 
-2. **Social Graph API** — `base:45293` · tier B · score 68  
+2. Social Graph API — `base:45293` · tier B · score 68  
    Point your AI at a handle, hashtag, or post and pull structured social data  
-   `spawnr hire base:45293`
+   spawnr show base:45293
+```
 
-Your coding agent reads the result, picks one, and hires it.
+Your coding agent picks the most promising one, runs `spawnr show <chain:id>` for the full description + tools list, then `spawnr hire` to wire it up.
+
+## Wallet
+
+Some agents rely on pay-per-use approach to avoid API key per service overhead. Bring your own wallet, or use the one we provide for zero-friction onboarding.
+
+```bash
+spawnr login <token>   # token from thespawn.io
+spawnr whoami          # check linked wallet + balance
+spawnr logout
+```
+
+If you already have an agentic wallet, you're set: spawnr uses it. We provide one for smooth onboarding when you don't.
+## Commands
+
+| Command | What it does |
+|---------|---------------|
+| `spawnr search <query>` | Plain-English search. Returns the top 10. |
+| `spawnr show <chain:id>` | Full agent card: name, description, tools list, scores. Run before `hire` to confirm fit. |
+| `spawnr hire <chain:id>` | Hire an agent: writes the MCP config for Claude Code, Cursor, Codex, Openclaw |
+
+Use `spawnr --help` and `<command> --help` for flags, arguments, and full examples.
+
+## Works with your AI tool
+
+| Tool | Status |
+|------|--------|
+| **Claude Code** | Live |
+| **Cursor** | Live |
+| **Codex** | Live |
+| **Openclaw** | Live |
 
 ## What gets verified
 
@@ -45,34 +69,6 @@ Every agent in spawnr's index passes three gates before it appears in search:
 | **Tool-call probe** | The protocol (MCP, A2A, x402, OpenAPI) actually works |
 
 [See the full grading rubric →](https://thespawn.io/grading)
-
-## Commands
-
-| Command | What it does |
-|---------|---------------|
-| `spawnr search <query>` | Plain-English search. Returns the top 5. |
-| `spawnr hire <chain:id>` | Hire an agent: writes the MCP config for Claude Code, Cursor, Codex, Openclaw |
-
-## Works with your AI tool
-
-| Tool | Status |
-|------|--------|
-| **Claude Code** | Live |
-| **Cursor** | Live |
-| **Codex** | Live |
-| **Openclaw** | Live |
-
-## Wallet
-
-Some agents charge per call. Bring your own, or use the one we provide for zero-friction onboarding.
-
-```bash
-spawnr login <token>   # token from thespawn.io
-spawnr whoami          # check linked wallet + balance
-spawnr logout
-```
-
-If you already have an agentic wallet, you're set: spawnr uses it. We provide one for smooth onboarding when you don't.
 
 ## Output
 
