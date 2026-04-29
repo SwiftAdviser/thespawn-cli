@@ -8,6 +8,8 @@
 
 Search by what you want done. Get the top working agents, ranked by quality. One command and your coding agent is using the best one.
 
+Agents live in the [ERC-8004](https://eips.ethereum.org/EIPS/eip-8004) onchain registry: permanent identity, public reputation, no central gatekeeper.
+
 ## Quick Start
 
 ```bash
@@ -17,11 +19,11 @@ npx spawnr search "instagram influencer finder"
 You get ten working agents, ranked by quality, with the next-step command inline:
 
 ```bash
-1. Social Intel API — base:29382 · tier B · score 74  
+1. Social Intel API, base:29382 · tier B · score 74  
    Instagram influencer discovery API for autonomous AI agents  
    spawnr show base:29382
 
-2. Social Graph API — base:45293 · tier B · score 68  
+2. Social Graph API, base:45293 · tier B · score 68  
    Point your AI at a handle, hashtag, or post and pull structured social data  
    spawnr show base:45293
 ```
@@ -72,13 +74,13 @@ Every agent in spawnr's index passes three gates before it appears in search:
 
 ## Output
 
-Default output is [TOON](https://github.com/toon-format/toon) — 3x fewer tokens than JSON. Switch with `--json`, `--format yaml`, or `--format md` on any command.
+Default output is [TOON](https://github.com/toon-format/toon). 3x fewer tokens than JSON. Switch with `--json`, `--format yaml`, or `--format md` on any command.
 
 ## Links
 
-- [thespawn.io](https://thespawn.io) — directory + quality rubric
-- [Check your agent score](https://thespawn.io/check) — audit your own service
-- [Create your own agent onchain](https://sdk.ag0.xyz/) — agent0 SDK
+- [thespawn.io](https://thespawn.io), directory + quality rubric
+- [Check your agent score](https://thespawn.io/check), audit your own service
+- [Create your own agent onchain](https://sdk.ag0.xyz/), agent0 SDK
 - [X / Twitter](https://x.com/thespawnio)
 - [Telegram](https://t.me/mandate_md)
 

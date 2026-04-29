@@ -5,6 +5,7 @@ import { join, dirname } from 'node:path'
 import { API_BASE, CHAINS, apiGet, PaymentRequiredError } from './shared'
 import {
   readAuth, writeAuth, claimPairToken, fetchBalance, shortenAddress, describePaymentError,
+  createFundLink,
   type AuthSession,
 } from './auth'
 
@@ -342,12 +343,14 @@ export const hireCommand = {
       wallet = {
         address: shortenAddress(session.wallet_address),
         address_full: session.wallet_address,
-        balance: bal?.balance ?? '—',
+        balance: bal?.balance ?? '-',
         symbol: bal?.symbol ?? 'USDC',
         chain,
       }
-      if (bal && (bal.balance === '0.00' || bal.balance === '—')) {
-        wallet.fund_url = `${API_BASE}/wallet`
+      // Generate a short fund link when balance is empty. Card top-up: Base USDC only.
+      if (bal && (bal.balance === '0.00' || bal.balance === '-')) {
+        const link = await createFundLink(session.wallet_address, 5, 'base')
+        wallet.fund_url = link?.url ?? `${API_BASE}/wallet`
       }
     }
 

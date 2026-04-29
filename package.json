@@ -1,6 +1,6 @@
 {
   "name": "spawnr",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Hire verified agents into your AI workflows. Works with Claude Code, Cursor, Codex, Openclaw.",
   "type": "module",
   "bin": {

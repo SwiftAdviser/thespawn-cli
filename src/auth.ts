@@ -87,6 +87,48 @@ export async function fetchBalance(
   }
 }
 
+export type FundLinkResponse = {
+  code: string
+  url: string
+  status_url: string
+}
+
+/**
+ * Create a short funding link backed by the Coindisco onramp.
+ * The browser opens to a Spawn-branded page that hosts the widget pre-filled
+ * with the user's wallet, USDC on Base, and the required amount.
+ */
+export async function createFundLink(
+  walletAddress: string,
+  amount: number,
+  chain = 'base',
+  timeoutMs = 2000,
+): Promise<FundLinkResponse | null> {
+  try {
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs)
+    const res = await fetch(`${API_BASE}/api/v1/fund-links`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'User-Agent': 'thespawn-cli',
+      },
+      body: JSON.stringify({
+        wallet_address: walletAddress,
+        chain,
+        amount: Number(amount.toFixed(2)),
+      }),
+      signal: ctrl.signal,
+    })
+    clearTimeout(timer)
+    if (!res.ok) return null
+    return (await res.json()) as FundLinkResponse
+  } catch {
+    return null
+  }
+}
+
 export function shortenAddress(addr: string): string {
   if (addr.length < 12) return addr
   return `${addr.slice(0, 6)}…${addr.slice(-4)}`
@@ -96,6 +138,10 @@ export function shortenAddress(addr: string): string {
  * Build a structured error payload when a call fails with 402.
  * Fetches current balance on the required network so we can tell the user
  * exactly how much to top up.
+ *
+ * If the user is linked, generates a short branded fund link pointing at the
+ * Coindisco onramp pre-filled with the wallet and required amount.
+ * Top-up defaults to Base network (the only network we currently fund via card).
  */
 export async function describePaymentError(err: PaymentRequiredError, session: AuthSession | null) {
   const req = err.requirement
@@ -115,6 +161,17 @@ export async function describePaymentError(err: PaymentRequiredError, session: A
   const shortage = Math.max(0, amountNum - balanceNum)
   const topUp = shortage > 0 ? shortage.toFixed(2) : '0.00'
 
+  // Generate a short fund link if we know the wallet. Card top-up only on Base for now.
+  let fundUrl = `${API_BASE}/wallet`
+  let fundCode: string | null = null
+  if (session?.wallet_address && shortage > 0) {
+    const link = await createFundLink(session.wallet_address, shortage, 'base')
+    if (link) {
+      fundUrl = link.url
+      fundCode = link.code
+    }
+  }
+
   return {
     error: 'payment_required',
     message: `Need ${req.amount} ${req.symbol} on ${req.network} to complete this action.`,
@@ -128,7 +185,7 @@ export async function describePaymentError(err: PaymentRequiredError, session: A
       ? {
           address: shortenAddress(session.wallet_address),
           address_full: session.wallet_address,
-          balance: currentBalance ?? '—',
+          balance: currentBalance ?? '-',
           symbol: req.symbol,
           network: req.network,
         }
@@ -136,11 +193,14 @@ export async function describePaymentError(err: PaymentRequiredError, session: A
     top_up: {
       minimum: topUp,
       symbol: req.symbol,
-      network: req.network,
+      network: 'base',
     },
-    fund_url: `${API_BASE}/wallet`,
+    fund_url: fundUrl,
+    fund_code: fundCode,
     hint: session
-      ? `Send at least ${topUp} ${req.symbol} on ${req.network} to ${session.wallet_address}, then rerun.`
+      ? fundCode
+        ? `Open ${fundUrl} to top up with a card (Base USDC). Rerun once funded.`
+        : `Send at least ${topUp} ${req.symbol} on ${req.network} to ${session.wallet_address}, then rerun.`
       : `Run \`spawnr login <token>\` to link your wallet, then fund it with at least ${req.amount} ${req.symbol} on ${req.network}.`,
   }
 }

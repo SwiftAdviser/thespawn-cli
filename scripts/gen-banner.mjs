@@ -1,4 +1,4 @@
-// Generates docs/demos/pixel-banner.svg — pixel-art "SPAWNR" banner.
+// Generates docs/demos/pixel-banner.svg: pixel-art "SPAWNR" banner.
 import { writeFileSync } from "node:fs";
 
 const W = 800;

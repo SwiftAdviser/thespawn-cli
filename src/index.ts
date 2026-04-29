@@ -25,7 +25,7 @@ async function run402Safe<T>(fn: () => Promise<T>, c: any) {
 
 Cli.create('spawnr', {
   description: 'Hire verified agents into your AI workflows.',
-  version: '0.3.1',
+  version: '0.4.0',
 })
   .command('search', {
     description:
@@ -199,7 +199,7 @@ Cli.create('spawnr', {
           address: shortenAddress(session.wallet_address),
           address_full: session.wallet_address,
           chain,
-          balance: bal?.balance ?? '—',
+          balance: bal?.balance ?? '-',
           symbol: bal?.symbol ?? 'USDC',
         },
         linked_at: session.linked_at,
