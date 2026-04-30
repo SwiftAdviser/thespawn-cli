@@ -43,6 +43,8 @@ type ToolInfo = {
   configPath: string
   detected: boolean
   format: 'json' | 'toml'
+  mcpKey?: string       // dot-path to mcp servers section. Default 'mcpServers'. Openclaw uses 'mcp.servers'.
+  addHttpType?: boolean // whether to inject { type: 'http' } into each server entry
 }
 
 type InstallResult = {
@@ -116,6 +118,7 @@ function detectTools(onlySlug?: string): ToolInfo[] {
       configPath: join(home, '.claude.json'),
       detected: existsSync(join(home, '.claude.json')),
       format: 'json',
+      addHttpType: true,
     },
     {
       name: 'Cursor',
@@ -137,6 +140,15 @@ function detectTools(onlySlug?: string): ToolInfo[] {
       configPath: join(home, '.codex', 'config.toml'),
       detected: existsSync(join(home, '.codex', 'config.toml')),
       format: 'toml',
+    },
+    {
+      name: 'Openclaw',
+      slug: 'openclaw',
+      configPath: join(home, '.openclaw', 'openclaw.json'),
+      detected: existsSync(join(home, '.openclaw')),
+      format: 'json',
+      mcpKey: 'mcp.servers',
+      addHttpType: true,
     },
   ]
 
@@ -169,13 +181,22 @@ function deriveServerName(agent: AgentDetail, override?: string): string {
 // Config writers
 // ---------------------------------------------------------------------------
 
-function writeJsonMcp(configPath: string, serverName: string, mcpUrl: string, dryRun: boolean): InstallResult {
-  const toolName = configPath.includes('.claude') ? 'Claude Code'
-    : configPath.includes('.cursor') ? 'Cursor'
-    : configPath.includes('windsurf') ? 'Windsurf'
-    : 'Unknown'
+// Walks a dot-path on `obj`, creating intermediate objects as needed,
+// and returns the final-leaf container. e.g. path='mcp.servers' returns obj.mcp.servers.
+function ensureNestedSection(obj: Record<string, unknown>, path: string): Record<string, unknown> {
+  const parts = path.split('.')
+  let cur: Record<string, unknown> = obj
+  for (const part of parts) {
+    if (typeof cur[part] !== 'object' || cur[part] === null) cur[part] = {}
+    cur = cur[part] as Record<string, unknown>
+  }
+  return cur
+}
 
+function writeJsonMcp(tool: ToolInfo, serverName: string, mcpUrl: string, dryRun: boolean): InstallResult {
+  const { name: toolName, configPath } = tool
   const shortPath = configPath.replace(homedir(), '~')
+  const mcpKey = tool.mcpKey ?? 'mcpServers'
 
   try {
     let config: Record<string, unknown> = {}
@@ -184,12 +205,11 @@ function writeJsonMcp(configPath: string, serverName: string, mcpUrl: string, dr
       config = JSON.parse(raw)
     }
 
-    const servers = (config.mcpServers ?? {}) as Record<string, unknown>
+    const servers = ensureNestedSection(config, mcpKey)
     const existed = serverName in servers
     const entry: Record<string, string> = { url: mcpUrl }
-    if (configPath.includes('.claude')) entry.type = 'http'
+    if (tool.addHttpType) entry.type = 'http'
     servers[serverName] = entry
-    config.mcpServers = servers
 
     if (dryRun) {
       return { tool: toolName, path: shortPath, status: 'dry-run' }
@@ -330,7 +350,7 @@ export const hireCommand = {
 
       const result = tool.format === 'toml'
         ? writeTomlMcp(tool.configPath, serverName, mcpUrl, dryRun)
-        : writeJsonMcp(tool.configPath, serverName, mcpUrl, dryRun)
+        : writeJsonMcp(tool, serverName, mcpUrl, dryRun)
 
       installed.push(result)
     }
