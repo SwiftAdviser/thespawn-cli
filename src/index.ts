@@ -26,7 +26,7 @@ async function run402Safe<T>(fn: () => Promise<T>, c: any) {
 
 Cli.create('spawnr', {
   description: 'Hire verified agents into your AI workflows.',
-  version: '0.4.1',
+  version: '0.4.2',
   sync: {
     include: ['skills/*'],
     suggestions: [
