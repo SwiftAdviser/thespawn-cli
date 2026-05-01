@@ -2,7 +2,10 @@ import { z } from 'incur'
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, dirname } from 'node:path'
-import { API_BASE, CHAINS, apiGet, PaymentRequiredError } from './shared'
+import {
+  API_BASE, CHAINS, apiGet, PaymentRequiredError, extractMcpEndpoint,
+  type AgentDetail,
+} from './shared'
 import {
   readAuth, writeAuth, claimPairToken, fetchBalance, shortenAddress, describePaymentError,
   createFundLink,
@@ -10,32 +13,8 @@ import {
 } from './auth'
 
 // ---------------------------------------------------------------------------
-// Banner
-// ---------------------------------------------------------------------------
-
-const BANNER = `
-       \u25CB
-      \u2571 \u2572    thespawn.io
-      \u2572 \u2571    hiring an agent
-       \u25CB
-`
-
-// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-
-type AgentDetail = {
-  agent_id: number
-  chain_id: number
-  chain_slug: string
-  name: string | null
-  description: string | null
-  quality_tier: string | null
-  quality_score: number | null
-  mcp_endpoint: string | null
-  services: Array<{ name?: string; type?: string; endpoint?: string; url?: string }> | null
-  url: string
-}
 
 type ToolInfo = {
   name: string
@@ -51,6 +30,7 @@ type InstallResult = {
   tool: string
   path: string
   status: 'added' | 'updated' | 'error' | 'dry-run'
+  config?: unknown
   error?: string
 }
 
@@ -83,25 +63,6 @@ function parseInput(input: string): { chain: string; agentId: number } {
   }
 
   throw new Error(`Invalid input. Use: base:29382, base/29382, or https://thespawn.io/agents/base/29382`)
-}
-
-// ---------------------------------------------------------------------------
-// MCP endpoint extraction
-// ---------------------------------------------------------------------------
-
-function extractMcpEndpoint(agent: AgentDetail): string | null {
-  if (agent.mcp_endpoint) return agent.mcp_endpoint
-
-  if (agent.services) {
-    for (const svc of agent.services) {
-      const label = (svc.type ?? svc.name ?? '').toLowerCase()
-      if (label === 'mcp') {
-        return svc.endpoint ?? svc.url ?? null
-      }
-    }
-  }
-
-  return null
 }
 
 // ---------------------------------------------------------------------------
@@ -211,9 +172,7 @@ function writeJsonMcp(tool: ToolInfo, serverName: string, mcpUrl: string, dryRun
     if (tool.addHttpType) entry.type = 'http'
     servers[serverName] = entry
 
-    if (dryRun) {
-      return { tool: toolName, path: shortPath, status: 'dry-run' }
-    }
+    if (dryRun) return { tool: toolName, path: shortPath, status: 'dry-run', config: { [mcpKey]: { [serverName]: entry } } }
 
     const dir = dirname(configPath)
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
@@ -249,7 +208,7 @@ function writeTomlMcp(configPath: string, serverName: string, mcpUrl: string, dr
     }
 
     if (dryRun) {
-      return { tool: 'Codex', path: shortPath, status: 'dry-run' }
+      return { tool: 'Codex', path: shortPath, status: 'dry-run', config: newSection.trimEnd() }
     }
 
     writeFileSync(configPath, content, 'utf-8')
@@ -266,7 +225,7 @@ function writeTomlMcp(configPath: string, serverName: string, mcpUrl: string, dr
 export const hireCommand = {
   description:
     'Hire an agent: writes its MCP config into your coding tools. ' +
-    'Auto-detects Claude Code, Cursor, Windsurf, Codex.',
+    'Auto-detects Claude Code, Cursor, Windsurf, Codex, Openclaw.',
   args: z.object({
     input: z.string().describe(
       'Agent reference: "base/29382" or "https://thespawn.io/agents/base/29382"',
@@ -274,10 +233,10 @@ export const hireCommand = {
   }),
   options: z.object({
     only: z.string().optional().describe(
-      'Install to one tool only: claude, cursor, windsurf, codex',
+      'Install to one tool only: claude, cursor, windsurf, codex, openclaw',
     ),
     name: z.string().optional().describe(
-      'Override server name in config (default: thespawn-{agent-name})',
+      'Override server name in config (default: spwnr-{agent-name})',
     ),
     'dry-run': z.boolean().optional().default(false).describe(
       'Preview changes without writing files',
@@ -286,9 +245,11 @@ export const hireCommand = {
       'One-time pairing token to link this install to your thespawn.io account',
     ),
   }),
+  examples: [
+    { args: { input: 'base:29382' }, options: { only: 'codex' }, description: 'Install one agent into Codex only' },
+    { args: { input: 'https://thespawn.io/agents/base/29382' }, options: { only: 'claude' }, description: 'Hire an agent from its The Spawn URL' },
+  ],
   async run(c: any) {
-    console.log(BANNER)
-
     const { chain, agentId } = parseInput(c.args.input)
 
     // Resolve auth first so 402 errors can reference the user's wallet.

@@ -32,6 +32,37 @@ export type Agent = {
   url: string
 }
 
+export type AgentService = {
+  name?: string
+  type?: string
+  version?: string
+  endpoint?: string
+  url?: string
+  description?: string
+  mcpTools?: string[]
+  mcpPrompts?: string[]
+  mcpResources?: string[]
+  a2aSkills?: string[]
+}
+
+export type AgentDetail = {
+  agent_id: number
+  chain_id: number
+  chain_slug: string
+  name: string | null
+  description: string | null
+  quality_tier: string | null
+  quality_score: number | null
+  mcp_endpoint: string | null
+  services: AgentService[] | null
+  url: string
+}
+
+export type AgentTool = {
+  name: string
+  description: string | null
+}
+
 export type BreakdownRow = { label: string; max: number; earned: number; tip: string | null }
 
 export type Recommendation = { severity: 'critical' | 'warning' | 'info'; message: string }
@@ -173,6 +204,102 @@ export function formatAgent(a: Agent) {
     url: a.url,
     show: `spawnr show ${a.chain_slug}:${a.agent_id}`,
   }
+}
+
+export function extractMcpEndpoint(agent: Pick<AgentDetail, 'mcp_endpoint' | 'services'>): string | null {
+  if (agent.mcp_endpoint) return agent.mcp_endpoint
+
+  if (agent.services) {
+    for (const svc of agent.services) {
+      const label = (svc.type ?? svc.name ?? '').toLowerCase()
+      if (label === 'mcp') {
+        return svc.endpoint ?? svc.url ?? null
+      }
+    }
+  }
+
+  return null
+}
+
+export function extractMetadataTools(services: AgentService[] | null | undefined): AgentTool[] {
+  const tools: AgentTool[] = []
+  for (const svc of services ?? []) {
+    for (const name of svc.mcpTools ?? []) {
+      tools.push({ name, description: null })
+    }
+  }
+  return tools
+}
+
+function parseJsonOrSse(raw: string): unknown {
+  const trimmed = raw.trim()
+  if (!trimmed) return null
+  if (trimmed.startsWith('{')) return JSON.parse(trimmed)
+
+  const data = trimmed
+    .split(/\r?\n/)
+    .filter((line) => line.startsWith('data:'))
+    .map((line) => line.slice(5).trim())
+    .join('\n')
+
+  return data ? JSON.parse(data) : null
+}
+
+export async function fetchMcpTools(endpoint: string, timeoutMs = 2000): Promise<AgentTool[]> {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs)
+
+  try {
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json, text/event-stream',
+        'Content-Type': 'application/json',
+        'User-Agent': 'thespawn-cli',
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 'tools-list',
+        method: 'tools/list',
+        params: {},
+      }),
+      signal: ctrl.signal,
+    })
+
+    if (!res.ok) return []
+    const parsed = parseJsonOrSse(await res.text()) as {
+      result?: { tools?: Array<{ name?: unknown; description?: unknown }> }
+    } | null
+
+    return (parsed?.result?.tools ?? [])
+      .filter((tool) => typeof tool.name === 'string' && tool.name.length > 0)
+      .map((tool) => ({
+        name: String(tool.name),
+        description: typeof tool.description === 'string' ? tool.description.trim() : null,
+      }))
+  } catch {
+    return []
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+export function formatServices(services: AgentService[] | null | undefined, mcpTools: AgentTool[] = []) {
+  return (services ?? []).map((svc) => {
+    const label = svc.type ?? svc.name ?? 'service'
+    const isMcp = label.toLowerCase() === 'mcp'
+    return {
+      name: svc.name ?? svc.type ?? 'service',
+      type: svc.type ?? svc.name ?? null,
+      endpoint: svc.endpoint ?? svc.url ?? null,
+      description: svc.description ?? null,
+      tools: isMcp
+        ? (mcpTools.length > 0
+            ? mcpTools
+            : (svc.mcpTools ?? []).map((name) => ({ name, description: null })))
+        : [],
+    }
+  })
 }
 
 export type SearchResponse = {
